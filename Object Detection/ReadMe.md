@@ -30,19 +30,26 @@ Hard Negative Mining*和 *Hard Negative Example*：
 
 ## **5. Bounding Box Regression**  
 
-​	当输入的Proposal box和Ground truth的IoU较大时($IoU>0.6$)，可以认为二者之间存在线性变换。这里BBox Reg即给定输入的BBox特征向量(x,y,w,h)，使用y=Wx学习到的W来使P框能接近G框。  
+​	为了解决Poor localization的问题。当输入的Proposal box和Ground truth的IoU较大时($IoU>0.6$)，可以认为二者之间存在线性变换。这里BBox Reg即给定输入的BBox特征向量(x,y,w,h)，使用y=Wx学习到的W来使P框能接近G框。  
 
 给定的学习的变换形式为：
 $$
-G_x = P_x + P_w d_x (P) \\
-  G_y = P_y + P_h d_y (P)   \\
-  G_w = P_w * e^{d_w(P)}  \\
-  G_h = P_h * e^{d_h(P)} \\
+\hat{G}_x = P_x + P_w d_x (P) \\
+  \hat{G}_y = P_y + P_h d_y (P)   \\
+  \hat{G}_w = P_w * e^{d_w(P)}  \\
+  \hat{G}_h = P_h * e^{d_h(P)} \\
 $$
 但是在R-CNN中，实际上不是使用的框的坐标进行回归，而是使用pool5层的输出作为feature：
 $$
-d_i = w_i ^ {T} \phi_{5i} \\  
-   loss = \sum_i^N (t_i - w_i^{T}\phi_{5i})^2 + \lambda \| w_i\|^2 \\
+t_i = w_i ^ {T} \phi_5(p_i) \\  
+   loss = \sum_i^N (t_i - w_i^{T}\phi_5(p_i))^2 + \lambda \| w_i\|^2 \\
+   其中:\\
+   \begin{align}
+   t_x &= (G_x - p_x)/p_w \\
+   t_y &= (G_y - p_y)/p_h \\
+   t_w &= \log (G_w / p_w) \\
+   t_h &= \log (G_h / p_h)
+   \end{align}
 $$
 
 
@@ -88,4 +95,14 @@ Ref: [https://arxiv.org/abs/1504.08083]
 # Faster R-CNN
 
 Ref: [https://arxiv.org/abs/1506.01497]
+
+## 1. Highlight
+
+提出Regional Proposal Networks (RPN) 用以代替之前的Selective Search的方法，即Faster R-CNN = Fast R-CNN + RPN。
+
+## 2. Main Steps
+
+![faster R-CNN](image/f2.jpg)
+
+首先通过pre-trained的CNN作为extractor得到conv feature map作为RPN的输入，然后由RPN找到可能包含objects的regions。找到这些Region及其在原始图像中对应的位置，使用RoI Pooling操作得到fixed size的feature map，再由接下来的模块进行classification和BBox位置的调整。
 
