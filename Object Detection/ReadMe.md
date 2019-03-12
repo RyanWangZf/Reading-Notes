@@ -58,7 +58,7 @@ Ref: [https://arxiv.org/abs/1504.08083]
 ## **2. Main Steps**  
 
 如图所示：  
-![f1](/home/zifeng/Document/Reading-Notes/Object Detection/image/f1.png)
+![f1](image/f1.png)
 
 首先将原始图像通过conv extractor (本文使用了VGGNet) 得到一个Conv Feature map和若干Proposal Box，所有的Proposal Box (即RoI) 都为这个conv feature map上的一个rectangular window。这样，原始图上的Box和conv feature map上的Box存在一个映射关系。
 
