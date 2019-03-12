@@ -37,6 +37,7 @@ $$ loss = \sum_i^N (t_i - w_i^{T}\phi_{5i})^2 + \lambda \| w_i\|^2 $$
 Ref: [https://arxiv.org/abs/1504.08083]  
 **Main Steps**  
 如图所示：  
+![Structure of Fast R-CNN](https://github.com/RyanWangZf/Reading-Notes/raw/master/Object%20Detection/image/f1.png)  
 
 **Region of Interest (ROI)**  
 R-CNN中用CNN对每一个BBox反复提取特征，而2000个Bbox之间有大量重叠，造成算力的浪费。  
