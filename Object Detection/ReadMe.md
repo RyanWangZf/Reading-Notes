@@ -183,10 +183,59 @@ R-FCN的共享卷积网络为101层，直接在最后的feature map上提取ROI�
 
 每个ROI  (包含x,y,w,h四个项) 被划分为K*K个bins (每个bin为一个子区域，size为h/k,w/k)，在该bin对应的score map上的子区域执行平均池化得到C+1 * K * K 个值。每个类别的 K * K个值表示该ROI属于该类别的响应值，相加即得到属于该类别的score。
 
+
+
 # YOLO
 
 ## 1. YOLO v1
 
+Ref: [https://pjreddie.com/media/files/papers/yolo_1.pdf]
+
+### 1. Framework
+
 为1-stage的object detection算法的代表，主要是去掉了Proposal Net的 过程，将物体监测作为一个回归问题进行求解。网络包含24个conv和2个全连接层，conv用于feature extractor，而dense用于预测bbox和confidence。
 
-将输入图像分割为 S x S 个格子，
+将输入图像分割为 S x S 个格子，每个格子为一个cell，每个cell负责检测那些中心落在该cell内的目标，会预测B个bbox以及bbox的confidence：
+$$
+confidence = Pr(object)*IOU_{pred}^{truth}
+$$
+包含框内是否有object的概率与预测框跟实际框之间的IOU的乘积，每个Bbbox的预测值包含5个元素：
+$$
+(x,y,w,h,c)
+$$
+其中x,y为相对每个单元格左上角坐标点的偏移值，w,h是关于整个图片的宽与高的比例，c为confidence。
+
+对于分类问题，每个cell需要给出其C个类别概率值，即Pr(class|object)。
+
+总之，每个cell需要给出(B*5+C)个值，最终S x S 个cell一共给出 S^2 * (B * 5 + C) 大小的张量。
+
+![](image/f6.png)
+
+![](image/f7.jpg)
+
+本文采用的S = 7，B = 2。网络的预测值为一二维tensor，shape为[batch,7 * 7 * 30]。
+
+对其切片P[:,0: 7 * 7* 20]为类别概率部分，P[:, 7 * 7 * 20: 7 * 7 * (20+2)]是置信度部分，最后的剩余部分是bbox的预测结果。
+
+YOLO v1中，一个cell只能预测一个目标，而不像faster RCNN 能够根据anchor与ground truth之间的IOU大小来安排anchor负责预测哪一个物体。
+
+### 3. Confidence Prediction
+
+* 训练阶段，如果物体没有落在cell内，则Pr(object) = 0，confidence = 0，如果落在了cell内，confidence = 0 * IoU，这个IOU是实时跟ground truth相比计算出来的
+* 预测阶段，网络直接输出一个confidence值
+
+### 4. Class Prediction
+
+* 训练阶段，对于一个cell，中心落在cell内则打上这个物体的类别label，并设置概率为1
+* 测试阶段，网络输出的是 Pr(class|object)，但最终类别概率为confidence * Pr(class | object)
+
+### 5. Loss Function
+
+* 有物体落入的cell，计算分类loss，两个predictor都计算confidence loss，预测的bbox与ground truth IOU较大的predictor计算xywh loss
+
+* 没有物体落入的cell，只计算confidence loss
+
+  
+
+## 2. YOLO v2
+
