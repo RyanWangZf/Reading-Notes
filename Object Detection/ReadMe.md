@@ -237,5 +237,40 @@ YOLO v1中，一个cell只能预测一个目标，而不像faster RCNN 能够根
 
   
 
-## 2. YOLO v2
+## 2. YOLO v2 & YOLO 9000
+
+Ref: [https://arxiv.org/abs/1612.08242]
+
+### 1. High Resolution Classifier
+
+原始的YOLO v1 (以下简称为v1) 采用的224*224的图片进行与训练，然后在detection的时候采用448 * 448的输入。而在YOLO v2 (以下简称为v2) 将这一步骤分为两步，首先用224 * 224的输入从头训练网络160epoch，随后再将输入调为448 * 448 再训练10个epoch。最后再在检测的数据集上使用448 * 448 的输入进行fine-tune。
+
+### 2. Convolutional with Anchor Boxes
+
+v1利用dense layer直接预测bbox的坐标，而v2借鉴faster r-cnn引入anchor，将v1的dense layer和最后一个pooling层去掉。
+
+用416 * 416 大小的输入代替原始的 448 * 448，缩小比例为32的情况下网络最后的输出feature map大小为13 * 13，这样奇数大小的feature map只有一个center。此时，若每个cell有9个anchor box，则每张图预测的box数量达到了 13 * 13 * 9 = 1521 个，而v1 每个cell预测2个bbox，每张图总共只有2 * 7 * 7 = 98 个bbox。bbox数量的增大有利于提高object的定位准确率。
+
+### 3. Dimension Clusters
+
+在Faster R-CNN中，anchor box的大小和比例按照经验设定若干个组合，然后在训练过程中对anchor box尺寸进行调整。v2采用了k-means对训练集的bbox做聚类来选择合适的anchor box候选集，注意这里的k-means选择的距离并非欧式距离，而是定义为
+$$
+d(box,centorid) = 1- IOU(box,centorid)
+$$
+v2中选择的k=5，而Faster R-CNN中采用了9种anchor box。
+
+### 4. Direct Location Prediction
+
+在region proposal的object detection算法中，通过预测t (即offset) 来得到(x,y)：
+$$
+\begin{align}
+x &= (t_x * w_a) - x_a \\
+x &= (t_y * h_a) - y_a
+\end{align}
+$$
+xa和ya是anchor的坐标，wa和ha是anchor的size。
+
+而v2中直接预测相对于cell的坐标位置，
+
+
 
