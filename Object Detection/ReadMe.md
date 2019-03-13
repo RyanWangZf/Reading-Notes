@@ -173,6 +173,8 @@ R-FCN的共享卷积网络为101层，直接在最后的feature map上提取ROI�
 
 用于解决translation variance问题。
 
+由ResNet输出的tensor根据Position-sensitive Score Pooling层转为一个 有k^2*(C+1) channel的特征图，这里
+
 一个含有类别C物体的ROI被划分为K*K个区域，分别表示物体的各个部位。该方法通过计算每个子区域的score进行vote来确定该ROI是否为object。这个score由Position-Sensitive ROI Pooling进行计算。
 
 ![](image/f4.png)
@@ -181,3 +183,10 @@ R-FCN的共享卷积网络为101层，直接在最后的feature map上提取ROI�
 
 每个ROI  (包含x,y,w,h四个项) 被划分为K*K个bins (每个bin为一个子区域，size为h/k,w/k)，在该bin对应的score map上的子区域执行平均池化得到C+1 * K * K 个值。每个类别的 K * K个值表示该ROI属于该类别的响应值，相加即得到属于该类别的score。
 
+# YOLO
+
+## 1. YOLO v1
+
+为1-stage的object detection算法的代表，主要是去掉了Proposal Net的 过程，将物体监测作为一个回归问题进行求解。网络包含24个conv和2个全连接层，conv用于feature extractor，而dense用于预测bbox和confidence。
+
+将输入图像分割为 S x S 个格子，
