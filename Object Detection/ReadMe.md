@@ -53,7 +53,9 @@ t_i = w_i ^ {T} \phi_5(p_i) \\
 $$
 
 
+
 # Fast R-CNN #
+
 Ref: [https://arxiv.org/abs/1504.08083]  
 
 ## **1. Highlights**  
@@ -91,6 +93,8 @@ Ref: [https://arxiv.org/abs/1504.08083]
   |x| - 0.5, &otherwise
   \end{cases}
   $$
+
+
 
 # Faster R-CNN
 
@@ -237,9 +241,11 @@ YOLO v1中，一个cell只能预测一个目标，而不像faster RCNN 能够根
 
   
 
-## 2. YOLO v2 & YOLO 9000
+## 2. YOLO v2
 
 Ref: [https://arxiv.org/abs/1612.08242]
+
+
 
 ### 1. High Resolution Classifier
 
@@ -264,13 +270,82 @@ v2中选择的k=5，而Faster R-CNN中采用了9种anchor box。
 在region proposal的object detection算法中，通过预测t (即offset) 来得到(x,y)：
 $$
 \begin{align}
-x &= (t_x * w_a) - x_a \\
-x &= (t_y * h_a) - y_a
+x &= (t_x * w_a) + x_a \\
+x &= (t_y * h_a) + y_a
 \end{align}
 $$
 xa和ya是anchor的坐标，wa和ha是anchor的size。
 
-而v2中直接预测相对于cell的坐标位置，
+而v2中直接预测bbox的center相对于对应cell左上角位置的偏移，每个cell预测5个bbox，每个bbox预测5个值：
+
+tx,ty,tw,th,to。tx和ty经过sigmoid函数处理缩放到0到1之间，cx和cy表示一个cell和图像左上角的横纵距离，如果pw和ph为anchor box的宽和高，则bx,by,bw,bh的预测的实际bbox的位置和大小为：
+$$
+\begin{align}
+b_x & = \sigma(t_x)+c_x \\
+b_y & = \sigma(t_y) + c_y \\
+b_w & = p_w e^{t_w} \\
+b_h & = p_h e^{t_h} 
+\end{align}
+\\
+\sigma(t_o) = Pr(object) * IOU(b,object)
+$$
+![](image/f8.jpg)
+
+
+
+### 5. Fine-Grained Features
+
+添加一个直通层(passthrough layer)，即源码中的reorg layer，将前一层的26 * 26的feature map和本层的13 * 13的feature map进行连接，这与ResNet中的shortcut类似。
+
+具体的，26\*26\*512 的feture map，经过passthrough层处理变成13\*13\*2048的新feature map，再与其后的13\*13\*1024feature map连接形成13\*13\*3072的map，最后在该大图上做预测。
+
+### 6. Muti-Scale Training
+
+v2中只有conv和pool层，因此输入图片的大小可以任意设置，所以v2采用每迭代一定轮数改变模型输入图片大小的方式使模型更robust。注意这一方式仅使用在目标数据集上fine-tuning，在ImageNet预训练时不使用。
+
+文中采用32的倍数作为输入的图片size，包括320,352,384,416,...608共10种size。
+
+当输入为320\*320时，输出为10\*10；输入为608\*608时，输出为19\*19，所以在最后的输出检测层部分也需进行专门的调整。
+
+### 7. Darknet-19
+
+![](image/f9.jpg)
+
+
+
+使用avg pooling层代替dense层进行预测，输出为1000类，这是在ImageNet上进行预训练时的架构。
+
+在training for detection时，移除最后的1000filters的conv和之后的avgpool和softmax。新增三个3\*3\*2014的卷积层，同时加入一个passthrough 层，最后使用1\*1的conv给出输出，输出channel数的计算如下：
+
+对于VOC数据集，每个cell预测5个bbox，每个bbox由5个坐标和20个类别，所以每个cell有5\*(5+20) = 125个filtters。
+
+注意这里与v1的区别，在v1里输出的filters = class + num_predictor \* (coords + confidence) = 20 + 2 \* (4+1) = 30。在v1里，每个cell对应一个类别，而在v2里每个bbox对应一个类别。
+
+
+
+## 3. YOLO 9000
+
+Ref: [https://arxiv.org/pdf/1612.08242v1.pdf]
+
+### 1. Framework
+
+YOLO9000和YOLOv2同时被提出，因为现有的detection数据集size比较小，YOLO9000利用WordTree架构将多种source的用于分类的数据集融合，利用joint optimization同时在ImageNet和COCO上进行训练。
+
+### 2. Hierarchy Classification
+
+![](image/f10.jpg)
+
+通过这个wordtree的架构，只对同一个概念下的词进行softmax分类，而不是像ImageNet里那样对整个1000+类进行大的softmax进行分类。
+
+当network输入为detection image，通过bp算法正常计算loss；为classification image时，仅仅计算相应level的classification loss。在计算某个节点的类别概率时，遍历path，然后计算path上各个节点的概率之和：
+
+![](image/f11.png)
+
+
+
+## SSD
+
+Ref: [https://arxiv.org/abs/1512.02325]
 
 
 
