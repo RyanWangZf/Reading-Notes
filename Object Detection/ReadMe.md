@@ -331,6 +331,8 @@ Ref: [https://arxiv.org/pdf/1612.08242v1.pdf]
 
 YOLO9000和YOLOv2同时被提出，因为现有的detection数据集size比较小，YOLO9000利用WordTree架构将多种source的用于分类的数据集融合，利用joint optimization同时在ImageNet和COCO上进行训练。
 
+
+
 ### 2. Hierarchy Classification
 
 ![](image/f10.jpg)
@@ -343,9 +345,68 @@ YOLO9000和YOLOv2同时被提出，因为现有的detection数据集size比较�
 
 
 
+## 3. YOLO v3
+
+Ref: [https://arxiv.org/abs/1804.02767]
+
+### 1. Framework
+
+![](image/f14.jpg)
+
+输出张量为$y_1$,$y_2$和$y_3​$，由v3提出prections across scales，借鉴了feature pyramid networks (FPN)的思想，采用多尺度来对不同size的目标进行检测。
+
+![](image/f15.png)
+
+三者的channel数均为255，边长分别为13,26和52。在v3中每一个cell预测3个bbox，每个box有$(x,y,w,h,confidence)$ 五个参数，然后还有80个类别的proba，所以由3\*(80+5) = 255。
+
+和SSD不同的是，v3采用上采样的方法实现mutl-scale的faeture map的concat。
+
+在bounding box prediction的时候，采用了logistic regression。v3做predict的时候输出与v2相同，然后通过变换公式(见YOLO v2 Direct Location Prediction) 得到$(x,y,w,h,c)$。
+
+这里的LR用于对anchor包围的部分进行一个目标性评分(objectness score)，即预测这块位置是目标的可能性有多大，这一步在predict之前进行，用于去掉不必要的anchor。
+
+
+
 ## SSD
 
 Ref: [https://arxiv.org/abs/1512.02325]
 
+### 1. Framework
+
+![](image/f12.png)
 
 
+
+* **Muti-scale feature maps**. SSD在base network (即pretrained的extractor) 之后又加入了若干的feature layers，用于多scale的offset及其confidence预测。
+
+* **Convolutional Predictors**. 每一个被加入的feature layer使用一系列小的卷积核叫做conv predictors产生固定个数的检测预测。比如，一个尺寸为m\*n\*p的feature layer，使用一个3\*3\*p的small kernel用于产生类别score和shape offset。
+
+* **Default boxes and aspect ratios**. 在feature map的每个位置预测K个bbox，对于每个bbox预测C个类别的分一级相对于default bbox的4个offset，这样需要(C+4)\*k个predictors，在m\*n的feature map上共产生(C+4)\*k\*m\*n个预测值，这里的default box与feature map上的每一个cell绑定。
+
+  
+
+### 2. Training
+
+* **Matching strategy**. 将每个ground truth box与具有最大jaccard overlap的default box进行匹配，保证每个ground truth都有对应的default box。将每个default box与任意ground truth匹配当两者的jaccard overlap大于0.5的阈值。jaccard overlap的计算方式：
+
+  ![](image/f13.png)
+
+- **Scales and aspect ratios for default boxes**. 根据一系列之前的研究，different level的feature map拥有不同的感受野(receptive field) 大小，低层的feature map保留更多的图像细节，采用低层的feature map能够提高目标检测和图像分割的效果。在SSD中，default box不需要和每一层的感受野对应，而是特定的feature map负责图像中特定尺寸的物体。在每个特征图上，default box的尺度计算为：
+
+  ![](image/f14.png)
+
+  其中s_min为0.2，s_max为0.9。
+
+  default box的aspect ratio有 $a_r \in {1,2,3,1/2,1/3}$，对于每个default box而言其宽高和中心计算为：
+  $$
+  w_k^a = s_k\sqrt{a_r} \\
+  h_k^a = s_k / \sqrt{a_r} \\
+  center = (\frac{i+0.5}{|f_k|},\frac{j+0.5}{|f_k|})
+  $$
+  $|f_k|$为第k个feature map的size，$i,j \in [0,|f_k|]$。
+
+  对于$a_r = 1$的情况，加入一个额外的 $ s_k ^{\prime}= \sqrt{s_k s_{k+1}}$ scale的box，这样对于每个feature map的location而言共有6个default box。
+
+  作者指出，在特定数据集上可以设计特定的default box的分布以获得更好的性能。
+
+  
