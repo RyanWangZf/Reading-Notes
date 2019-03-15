@@ -21,3 +21,9 @@
 对tf.nn.depthwise_conv2d的一个扩展，具体为depthwise_conv2d操作后接一个pointwise卷积。
 
 这个pointwise卷积即使用kernel shape为 [1,1,channel_multiplier*in_channels,out_channels] 的tf.nn.conv_2d，这里可以理解为对由depthwise_conv2d得到的分离的各个channel的信息进行融合。
+
+
+
+# 研究型论文的通用架构
+
+![](image/f1.jpg)
